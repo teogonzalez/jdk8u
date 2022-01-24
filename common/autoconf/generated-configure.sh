@@ -651,6 +651,9 @@ LLVM_CONFIG
 LIBFFI_LIBS
 LIBFFI_CFLAGS
 STATIC_CXX_SETTING
+USE_SYSCONF_NSS
+NSS_LIBS
+NSS_CFLAGS
 LIBDL
 LIBM
 LIBZIP_CAN_USE_MMAP
@@ -1110,6 +1113,7 @@ with_fontconfig
 with_fontconfig_include
 with_giflib
 with_zlib
+enable_sysconf_nss
 with_stdc__lib
 with_msvcr_dll
 with_msvcp_dll
@@ -1216,6 +1220,8 @@ FREETYPE_CFLAGS
 FREETYPE_LIBS
 ALSA_CFLAGS
 ALSA_LIBS
+NSS_CFLAGS
+NSS_LIBS
 LIBFFI_CFLAGS
 LIBFFI_LIBS
 CCACHE'
@@ -1869,6 +1875,8 @@ Optional Features:
                           disable bundling of the freetype library with the
                           build result [enabled on Windows or when using
                           --with-freetype, disabled otherwise]
+  --enable-sysconf-nss    build the System Configurator (libsysconf) using the
+                          system NSS library if available [disabled]
   --enable-sjavac         use sjavac to do fast incremental compiles
                           [disabled]
   --disable-precompiled-headers
@@ -2112,6 +2120,8 @@ Some influential environment variables:
               linker flags for FREETYPE, overriding pkg-config
   ALSA_CFLAGS C compiler flags for ALSA, overriding pkg-config
   ALSA_LIBS   linker flags for ALSA, overriding pkg-config
+  NSS_CFLAGS  C compiler flags for NSS, overriding pkg-config
+  NSS_LIBS    linker flags for NSS, overriding pkg-config
   LIBFFI_CFLAGS
               C compiler flags for LIBFFI, overriding pkg-config
   LIBFFI_LIBS linker flags for LIBFFI, overriding pkg-config
@@ -2876,6 +2886,52 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_check_header_compile
+
+# ac_fn_c_try_link LINENO
+# -----------------------
+# Try to link conftest.$ac_ext, and return whether this succeeded.
+ac_fn_c_try_link ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  rm -f conftest.$ac_objext conftest$ac_exeext
+  if { { ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
+$as_echo "$ac_try_echo"; } >&5
+  (eval "$ac_link") 2>conftest.err
+  ac_status=$?
+  if test -s conftest.err; then
+    grep -v '^ *+' conftest.err >conftest.er1
+    cat conftest.er1 >&5
+    mv -f conftest.er1 conftest.err
+  fi
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext && {
+	 test "$cross_compiling" = yes ||
+	 test -x conftest$ac_exeext
+       }; then :
+  ac_retval=0
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_retval=1
+fi
+  # Delete the IPA/IPO (Inter Procedural Analysis/Optimization) information
+  # created by the PGI compiler (conftest_ipa8_conftest.oo), as it would
+  # interfere with the next link command; also delete a directory that is
+  # left behind by Apple's compiler.  We do this before executing the actions.
+  rm -rf conftest.dSYM conftest_ipa8_conftest.oo
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+  as_fn_set_status $ac_retval
+
+} # ac_fn_c_try_link
 cat >config.log <<_ACEOF
 This file contains any messages produced by compilers while
 running configure, to aid debugging if configure makes a mistake.
@@ -4046,6 +4102,11 @@ fi
 
 
 
+################################################################################
+# Setup system configuration libraries
+################################################################################
+
+
 #
 # Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -4400,7 +4461,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1625670527
+DATE_WHEN_GENERATED=1629939419
 
 ###############################################################################
 #
@@ -49099,6 +49160,157 @@ fi
   LIBDL="$LIBS"
 
   LIBS="$save_LIBS"
+
+
+  ###############################################################################
+  #
+  # Check for the NSS library
+  #
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to use the system NSS library with the System Configurator (libsysconf)" >&5
+$as_echo_n "checking whether to use the system NSS library with the System Configurator (libsysconf)... " >&6; }
+
+  # default is not available
+  DEFAULT_SYSCONF_NSS=no
+
+  # Check whether --enable-sysconf-nss was given.
+if test "${enable_sysconf_nss+set}" = set; then :
+  enableval=$enable_sysconf_nss;
+    case "${enableval}" in
+      yes)
+        sysconf_nss=yes
+        ;;
+      *)
+        sysconf_nss=no
+        ;;
+    esac
+
+else
+
+    sysconf_nss=${DEFAULT_SYSCONF_NSS}
+
+fi
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $sysconf_nss" >&5
+$as_echo "$sysconf_nss" >&6; }
+
+  USE_SYSCONF_NSS=false
+  if test "x${sysconf_nss}" = "xyes"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for NSS" >&5
+$as_echo_n "checking for NSS... " >&6; }
+
+if test -n "$NSS_CFLAGS"; then
+    pkg_cv_NSS_CFLAGS="$NSS_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"nss >= 3.53\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "nss >= 3.53") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_NSS_CFLAGS=`$PKG_CONFIG --cflags "nss >= 3.53" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$NSS_LIBS"; then
+    pkg_cv_NSS_LIBS="$NSS_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"nss >= 3.53\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "nss >= 3.53") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_NSS_LIBS=`$PKG_CONFIG --libs "nss >= 3.53" 2>/dev/null`
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        NSS_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "nss >= 3.53" 2>&1`
+        else
+	        NSS_PKG_ERRORS=`$PKG_CONFIG --print-errors "nss >= 3.53" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$NSS_PKG_ERRORS" >&5
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+                NSS_FOUND=no
+elif test $pkg_failed = untried; then
+	NSS_FOUND=no
+else
+	NSS_CFLAGS=$pkg_cv_NSS_CFLAGS
+	NSS_LIBS=$pkg_cv_NSS_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	NSS_FOUND=yes
+fi
+      if test "x${NSS_FOUND}" = "xyes"; then
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for system FIPS support in NSS" >&5
+$as_echo_n "checking for system FIPS support in NSS... " >&6; }
+         saved_libs="${LIBS}"
+         saved_cflags="${CFLAGS}"
+         CFLAGS="${CFLAGS} ${NSS_CFLAGS}"
+         LIBS="${LIBS} ${NSS_LIBS}"
+         ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+         cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <nss3/pk11pub.h>
+int
+main ()
+{
+SECMOD_GetSystemFIPSEnabled()
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+                        as_fn_error $? "System NSS FIPS detection unavailable" "$LINENO" 5
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+         ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+         CFLAGS="${saved_cflags}"
+         LIBS="${saved_libs}"
+         USE_SYSCONF_NSS=true
+      else
+                           as_fn_error $? "--enable-sysconf-nss specified, but NSS 3.53 or above not found." "$LINENO" 5
+      fi
+  fi
+
 
 
   ###############################################################################
