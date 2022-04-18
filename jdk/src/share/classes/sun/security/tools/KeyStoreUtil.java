@@ -34,6 +34,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 
 import java.security.KeyStore;
+import java.security.Security;
 
 import java.security.cert.X509Certificate;
 import java.text.Collator;
@@ -103,9 +104,18 @@ public class KeyStoreUtil {
         throws Exception
     {
         String sep = File.separator;
-        File file = new File(System.getProperty("java.home") + sep
-                             + "lib" + sep + "security" + sep
-                             + "cacerts");
+        File file = null;
+        /* Check system cacerts DB first */
+        String systemDB = Security.getProperty("security.systemCACerts");
+        boolean systemStoreOff = Boolean.getBoolean("java.security.disableSystemCACerts");
+        if (!systemStoreOff && systemDB != null && !"".equals(systemDB)) {
+            file = new File(systemDB);
+        }
+        if (file == null || !file.exists()) {
+            file = new File(System.getProperty("java.home") + sep
+                            + "lib" + sep + "security" + sep
+                            + "cacerts");
+        }
         if (!file.exists()) {
             return null;
         }

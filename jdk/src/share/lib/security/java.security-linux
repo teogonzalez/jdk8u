@@ -308,6 +308,13 @@ security.overridePropertiesFile=true
 security.useSystemPropertiesFile=true
 
 #
+# Specifies the system certificate store
+# This property may be disabled using
+# -Djava.security.disableSystemCACerts=true
+#
+security.systemCACerts=${java.home}/lib/security/cacerts
+
+#
 # Determines the default key and trust manager factory algorithms for
 # the javax.net.ssl package.
 #

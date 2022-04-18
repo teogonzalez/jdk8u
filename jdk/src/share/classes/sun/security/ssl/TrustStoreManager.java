@@ -68,7 +68,7 @@ final class TrustStoreManager {
      * The preference of the default trusted KeyStore is:
      *    javax.net.ssl.trustStore
      *    jssecacerts
-     *    cacerts
+     *    cacerts (system and local)
      */
     private static final class TrustStoreDescriptor {
         private static final String fileSep = File.separator;
@@ -79,6 +79,11 @@ final class TrustStoreManager {
                 defaultStorePath + fileSep + "cacerts";
         private static final String jsseDefaultStore =
                 defaultStorePath + fileSep + "jssecacerts";
+        /* Check system cacerts DB */
+        private static final boolean systemStoreOff =
+                privilegedGetBooleanProperty("java.security.disableSystemCACerts");
+        private static final String systemStore = (systemStoreOff ? defaultStore :
+                privilegedGetSecurityProperty("security.systemCACerts"));
 
         // the trust store name
         private final String storeName;
@@ -139,28 +144,35 @@ final class TrustStoreManager {
                     String storePropPassword = System.getProperty(
                             "javax.net.ssl.trustStorePassword", "");
 
+                    if (SSLLogger.isOn && SSLLogger.isOn("trustmanager")) {
+                        SSLLogger.fine("System store disabled: " + systemStoreOff);
+                        SSLLogger.fine("System store: " + systemStore);
+                    }
+
                     String temporaryName = "";
                     File temporaryFile = null;
                     long temporaryTime = 0L;
                     if (!"NONE".equals(storePropName)) {
                         String[] fileNames =
-                                new String[] {storePropName, defaultStore};
+                                new String[] {storePropName,
+                                              systemStore, defaultStore};
                         for (String fileName : fileNames) {
-                            File f = new File(fileName);
-                            if (f.isFile() && f.canRead()) {
-                                temporaryName = fileName;;
-                                temporaryFile = f;
-                                temporaryTime = f.lastModified();
+                            if (fileName != null && !"".equals(fileName)) {
+                                File f = new File(fileName);
+                                if (f.isFile() && f.canRead()) {
+                                    temporaryName = fileName;;
+                                    temporaryFile = f;
+                                    temporaryTime = f.lastModified();
 
-                                break;
-                            }
-
-                            // Not break, the file is inaccessible.
-                            if (SSLLogger.isOn &&
+                                    break;
+                                }
+                                // Not break, the file is inaccessible.
+                                if (SSLLogger.isOn &&
                                     SSLLogger.isOn("trustmanager")) {
-                                SSLLogger.fine(
-                                        "Inaccessible trust store: " +
-                                        storePropName);
+                                    SSLLogger.fine(
+                                            "Inaccessible trust store: " +
+                                            fileName);
+                                }
                             }
                         }
                     } else {
@@ -388,6 +400,33 @@ final class TrustStoreManager {
             }
 
             return TrustStoreUtil.getTrustedCerts(ks);
+        }
+    }
+
+    private static String privilegedGetSecurityProperty(final String prop) {
+        if (System.getSecurityManager() == null) {
+            return Security.getProperty(prop);
+        } else {
+            return AccessController.doPrivileged(new PrivilegedAction<String>() {
+                @Override
+                public String run() {
+                    return Security.getProperty(prop);
+                }
+            });
+        }
+    }
+
+    /**
+     * Returns {@code true} if the {@code System} property is present and set to @{code "true"}.
+     *
+     * @param prop the name of the property to check.
+     * @return true if the property is present and set to {@code "true"}.
+     */
+    private static boolean privilegedGetBooleanProperty(final String prop) {
+        if (System.getSecurityManager() == null) {
+            return Boolean.getBoolean(prop);
+        } else {
+            return AccessController.doPrivileged(new GetBooleanAction(prop));
         }
     }
 }
