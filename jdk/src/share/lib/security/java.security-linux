@@ -76,7 +76,7 @@ security.provider.8=org.jcp.xml.dsig.internal.dom.XMLDSigRI
 security.provider.9=sun.security.smartcardio.SunPCSC
 
 #
-# Security providers used when global crypto-policies are set to FIPS.
+# Security providers used when FIPS mode support is active
 #
 fips.provider.1=sun.security.pkcs11.SunPKCS11 ${java.home}/lib/security/nss.fips.cfg
 fips.provider.2=sun.security.provider.Sun
@@ -305,7 +305,7 @@ security.overridePropertiesFile=true
 # using the system properties file stored at
 # /etc/crypto-policies/back-ends/java.config
 #
-security.useSystemPropertiesFile=true
+security.useSystemPropertiesFile=false
 
 #
 # Determines the default key and trust manager factory algorithms for
