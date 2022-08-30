@@ -33,7 +33,9 @@ import java.io.InputStreamReader;
 
 import java.net.URL;
 
+import java.security.AccessController;
 import java.security.KeyStore;
+import java.security.PrivilegedAction;
 import java.security.Security;
 
 import java.security.cert.X509Certificate;
@@ -54,6 +56,33 @@ public class KeyStoreUtil {
     }
 
     private static final String JKS = "jks";
+
+    private static final String PROP_NAME = "security.systemCACerts";
+
+    /**
+     * Returns the value of the security property propName, which can be overridden
+     * by a system property of the same name
+     *
+     * @param  propName the name of the system or security property
+     * @return the value of the system or security property
+     */
+    @SuppressWarnings("removal")
+    public static String privilegedGetOverridable(String propName) {
+        if (System.getSecurityManager() == null) {
+            return getOverridableProperty(propName);
+        } else {
+            return AccessController.doPrivileged((PrivilegedAction<String>) () -> getOverridableProperty(propName));
+        }
+    }
+
+    private static String getOverridableProperty(String propName) {
+        String val = System.getProperty(propName);
+        if (val == null) {
+            return Security.getProperty(propName);
+        } else {
+            return val;
+        }
+    }
 
     /**
      * Returns true if the certificate is self-signed, false otherwise.
@@ -98,17 +127,15 @@ public class KeyStoreUtil {
     }
 
     /**
-     * Returns the keystore with the configured CA certificates.
+     * Returns the path to the cacerts DB
      */
-    public static KeyStore getCacertsKeyStore()
-        throws Exception
+    public static File getCacertsKeyStoreFile()
     {
         String sep = File.separator;
         File file = null;
-        /* Check system cacerts DB first */
-        String systemDB = Security.getProperty("security.systemCACerts");
-        boolean systemStoreOff = Boolean.getBoolean("java.security.disableSystemCACerts");
-        if (!systemStoreOff && systemDB != null && !"".equals(systemDB)) {
+        /* Check system cacerts DB first, preferring system property over security property */
+        String systemDB = privilegedGetOverridable(PROP_NAME);
+        if (systemDB != null && !"".equals(systemDB)) {
             file = new File(systemDB);
         }
         if (file == null || !file.exists()) {
@@ -116,10 +143,21 @@ public class KeyStoreUtil {
                             + "lib" + sep + "security" + sep
                             + "cacerts");
         }
-        if (!file.exists()) {
-            return null;
+        if (file.exists()) {
+            return file;
         }
+        return null;
+    }
+
+    /**
+     * Returns the keystore with the configured CA certificates.
+     */
+    public static KeyStore getCacertsKeyStore()
+        throws Exception
+    {
         KeyStore caks = null;
+        File file = getCacertsKeyStoreFile();
+        if (file == null) { return null; }
         try (FileInputStream fis = new FileInputStream(file)) {
             caks = KeyStore.getInstance(JKS);
             caks.load(fis, null);
